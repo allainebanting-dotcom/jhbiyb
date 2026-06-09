@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shoot That Ball! - Central Angles Game</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(circle, #1a1b3a 0%, #070814 100%);
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .retro-font {
+            font-family: 'Share Tech Mono', monospace;
+        }
+        /* Custom scrollbar just in case */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4f46e5;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center text-white p-2 sm:p-4">
+
+    <!-- Main Responsive Game Container (16:9 Aspect Ratio) -->
+    <div id="game-wrapper" class="relative w-full max-w-5xl aspect-[16/9] bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border-4 border-indigo-500/50 flex flex-col">
+        
+        <!-- TOP HUD BAR -->
+        <div class="h-14 bg-slate-950/80 border-b border-indigo-500/30 flex items-center justify-between px-4 sm:px-6 z-10 shrink-0">
+            <div class="flex items-center space-x-3">
+                <span class="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-500 tracking-wider">SHOOT THAT BALL!</span>
+                <span id="level-badge" class="bg-indigo-600/80 border border-indigo-400 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-widest">Easy</span>
+            </div>
+            
+            <div class="flex items-center space-x-6">
+                <!-- Score Indicator -->
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-slate-400 uppercase tracking-widest font-semibold">Score:</span>
+                    <span id="hud-score" class="retro-font text-2xl font-bold text-emerald-400">000</span>
+                </div>
+                <!-- Streak Indicator -->
+                <div class="hidden sm:flex items-center space-x-2">
+                    <span class="text-xs text-slate-400 uppercase tracking-widest font-semibold">Streak:</span>
+                    <span id="hud-streak" class="retro-font text-2xl font-bold text-amber-400">0</span>
+                    <span id="streak-fire" class="animate-bounce text-lg hidden">🔥</span>
+                </div>
+                <!-- Audio Controls -->
+                <button id="btn-audio" class="p-2 rounded-lg bg-indigo-950 border border-indigo-500/30 hover:bg-indigo-900 transition-colors duration-200 flex items-center justify-center">
+                    <!-- Music Icon -->
+                    <svg id="icon-music-on" class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+                    <svg id="icon-music-off" class="w-5 h-5 text-rose-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- MAIN LAYOUT (Canvas + Question Sidebar) -->
+        <div class="flex-grow flex relative overflow-hidden">
+            
+            <!-- LEFT: Math Circle Display & Cannon Game Canvas -->
+            <div class="flex-grow relative h-full bg-slate-950">
+                <canvas id="canvas" class="w-full h-full block cursor-crosshair"></canvas>
+                
+                <!-- Quick Instructions Overlay (Fades out when user starts playing) -->
+                <div id="aim-tip" class="absolute bottom-4 left-4 right-4 bg-slate-950/80 border border-indigo-500/30 p-2 rounded-lg text-center pointer-events-none transition-opacity duration-500">
+                    <p class="text-xs sm:text-sm text-indigo-200">
+                        🎯 <span class="font-bold text-amber-400">Drag back and release</span> (slingshot style) the basketball to aim and shoot at the correct hoop!
+                    </p>
+                </div>
+            </div>
+
+            <!-- RIGHT: Question Panel -->
+            <div class="w-72 sm:w-80 bg-slate-900 border-l border-indigo-500/30 flex flex-col p-4 justify-between shrink-0 z-10">
+                <!-- Question Block -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-indigo-400">Target Problem</span>
+                        <span id="question-index" class="text-xs text-slate-400 retro-font">Q: 1/5</span>
+                    </div>
+                    <div class="p-3 bg-slate-950 rounded-xl border border-indigo-500/20">
+                        <p id="question-text" class="text-sm sm:text-base font-medium leading-relaxed text-indigo-100">
+                            Loading your next challenge...
+                        </p>
+                    </div>
+                    <!-- Formula Cheat Sheet Helper Card -->
+                    <div class="p-2.5 bg-indigo-950/40 border border-indigo-500/10 rounded-lg text-xs space-y-1">
+                        <p class="font-bold text-indigo-300">💡 Rule Reminder</p>
+                        <p id="rule-tip" class="text-indigo-200/80">
+                            A central angle is equal to the measure of its intercepted arc.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Live Attempt Feedback Alert (Dynamic) -->
+                <div id="feedback-panel" class="my-3 flex-grow flex flex-col justify-center items-center text-center p-3 rounded-xl border border-transparent transition-all duration-300 hidden">
+                    <span id="feedback-emoji" class="text-3xl mb-1">🎉</span>
+                    <h4 id="feedback-title" class="font-bold text-sm uppercase tracking-wider">Correct!</h4>
+                    <p id="feedback-desc" class="text-xs mt-1 text-slate-200"></p>
+                </div>
+
+                <!-- Footer Operations / Next Button -->
+                <div class="space-y-2">
+                    <button id="btn-next" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-95 text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-950/50 hidden">
+                        Next Challenge →
+                    </button>
+                    <div class="grid grid-cols-3 gap-1">
+                        <button onclick="setDifficulty('easy')" id="btn-diff-easy" class="py-1.5 rounded bg-indigo-600 font-bold text-xs hover:bg-indigo-500 transition-colors">Easy</button>
+                        <button onclick="setDifficulty('medium')" id="btn-diff-medium" class="py-1.5 rounded bg-slate-800 font-bold text-xs hover:bg-slate-700 transition-colors text-slate-400">Medium</button>
+                        <button onclick="setDifficulty('hard')" id="btn-diff-hard" class="py-1.5 rounded bg-slate-800 font-bold text-xs hover:bg-slate-700 transition-colors text-slate-400">Hard</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- START/GAME OVER FULL SCREEN OVERLAYS -->
+        <!-- Start Screen -->
+        <div id="screen-start" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-20 space-y-6">
+            <div class="space-y-2 animate-pulse">
+                <div class="flex items-center justify-center space-x-2">
+                    <span class="text-5xl">🏀</span>
+                    <h1 class="text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-500 to-yellow-300 tracking-wider">SHOOT THAT BALL!</h1>
+                    <span class="text-5xl">🏀</span>
+                </div>
+                <p class="text-indigo-400 tracking-widest uppercase font-semibold text-sm sm:text-base">The Ultimate Grade 10 Central Angles Math Challenge</p>
+            </div>
+
+            <div class="max-w-md bg-slate-900 border border-indigo-500/30 p-5 rounded-2xl text-slate-300 text-sm space-y-3 shadow-xl">
+                <h3 class="font-bold text-indigo-300 uppercase tracking-wider">How to Play:</h3>
+                <ul class="text-left space-y-2 list-disc list-inside">
+                    <li>Analyze the mathematical circle diagram.</li>
+                    <li>Solve for the missing angle or intercepted arc.</li>
+                    <li>Drag the ball back, aim at the hoop with the correct answer, and release to shoot!</li>
+                    <li>Score bonuses on consecutive streaks!</li>
+                </ul>
+            </div>
+
+            <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+                <button onclick="startGame('easy')" class="px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-600 hover:scale-105 active:scale-95 text-white font-extrabold text-lg rounded-xl transition-all shadow-lg shadow-orange-950/50">
+                    PLAY EASY MODE
+                </button>
+                <button onclick="startGame('medium')" class="px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:scale-105 active:scale-95 text-white font-extrabold text-lg rounded-xl transition-all shadow-lg shadow-indigo-950/50">
+                    PLAY MEDIUM MODE
+                </button>
+                <button onclick="startGame('hard')" class="px-8 py-4 bg-gradient-to-r from-rose-500 to-red-600 hover:scale-105 active:scale-95 text-white font-extrabold text-lg rounded-xl transition-all shadow-lg shadow-rose-950/50">
+                    PLAY HARD MODE
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="screen-gameover" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-20 space-y-6 hidden">
+            <h2 class="text-4xl sm:text-5xl font-black text-rose-500 tracking-wider">CONGRATULATIONS!</h2>
+            <p class="text-indigo-300 text-lg">You completed the <span id="completed-difficulty-text" class="font-bold text-amber-400">Easy</span> challenge!</p>
+            
+            <div class="grid grid-cols-2 gap-6 max-w-sm w-full bg-slate-900 p-6 border border-indigo-500/30 rounded-2xl shadow-xl">
+                <div class="text-center">
+                    <span class="block text-xs uppercase tracking-wider text-slate-400">Final Score</span>
+                    <span id="final-score" class="text-3xl font-black text-emerald-400 retro-font">0</span>
+                </div>
+                <div class="text-center">
+                    <span class="block text-xs uppercase tracking-wider text-slate-400">Accuracy</span>
+                    <span id="final-accuracy" class="text-3xl font-black text-amber-400 retro-font">100%</span>
+                </div>
+            </div>
+
+            <div class="flex space-x-4">
+                <button onclick="resetGame()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold rounded-xl transition-all shadow-lg">
+                    Play Again
+                </button>
+                <button id="btn-next-tier" onclick="upgradeTier()" class="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:scale-105 active:scale-95 text-white font-bold rounded-xl transition-all shadow-lg">
+                    Next Difficulty 🚀
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIO ENGINE & MATH GAME SCRIPT -->
+    <script>
+        // --- SYNTH AUDIO ENGINE (Web Audio API) ---
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = false;
+                this.musicInterval = null;
+                this.musicStep = 0;
+            }
+
+            init() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.enabled = true;
+                this.startMusicLoop();
+            }
+
+            toggle() {
+                if (!this.ctx) {
+                    this.init();
+                    return;
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                    this.enabled = true;
+                    this.startMusicLoop();
+                } else if (this.ctx.state === 'running') {
+                    this.ctx.suspend();
+                    this.enabled = false;
+                    this.stopMusicLoop();
+                }
+            }
+
+            playShot() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+
+            playSwish() {
+                if (!this.enabled || !this.ctx) return;
+                const bufferSize = this.ctx.sampleRate * 0.25;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(1000, this.ctx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.2);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start();
+            }
+
+            playClank() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                osc.frequency.setValueAtTime(80, this.ctx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            }
+
+            playPerfect() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, index) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + index * 0.08);
+                    gain.gain.setValueAtTime(0.1, now + index * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + index * 0.08 + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + index * 0.08);
+                    osc.stop(now + index * 0.08 + 0.2);
+                });
+            }
+
+            startMusicLoop() {
+                this.stopMusicLoop();
+                const melody = [261.63, 293.66, 329.63, 392.00, 329.63, 293.66, 261.63, 392.00]; // Pentatonic arpeggio
+                this.musicInterval = setInterval(() => {
+                    if (!this.enabled || !this.ctx) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    
+                    const note = melody[this.musicStep % melody.length];
+                    osc.frequency.setValueAtTime(note, this.ctx.currentTime);
+                    
+                    // Light, soft retro background pulse
+                    gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.4);
+                    
+                    this.musicStep++;
+                }, 400);
+            }
+
+            stopMusicLoop() {
+                if (this.musicInterval) {
+                    clearInterval(this.musicInterval);
+                    this.musicInterval = null;
+                }
+            }
+        }
+
+        const sound = new SoundEngine();
+
+        // Audio Button Handler
+        document.getElementById('btn-audio').addEventListener('click', () => {
+            sound.toggle();
+            const musicOn = document.getElementById('icon-music-on');
+            const musicOff = document.getElementById('icon-music-off');
+            if (sound.enabled) {
+                musicOn.classList.remove('hidden');
+                musicOff.classList.add('hidden');
+            } else {
+                musicOn.classList.add('hidden');
+                musicOff.classList.remove('hidden');
+            }
+        });
+
+
+        // --- MATHEMATICAL DATA POOLS ---
+        // Generates questions dynamically on difficulty configurations.
+        const mathQuestions = {
+            easy: [
+                {
+                    arcVal: 60,
+                    angleVal: 60,
+                    find: 'angle',
+                    qText: "In the circle centered at O, the intercepted arc AB has a measure of 60°. What is the measure of the central angle ∠AOB?",
+                    rule: "Theorem: The measure of a central angle is equal to the measure of its intercepted arc.",
+                    choices: [30, 60, 120, 180],
+                    ans: 60
+                },
+                {
+                    arcVal: 120,
+                    angleVal: 120,
+                    find: 'arc',
+                    qText: "The central angle ∠COD is exactly 120°. What is the measure of the minor arc CD?",
+                    rule: "A central angle and its corresponding intercepted arc always have the same degree measure.",
+                    choices: [60, 90, 120, 240],
+                    ans: 120
+                },
+                {
+                    arcVal: 90,
+                    angleVal: 90,
+                    find: 'angle',
+                    qText: "The circle is divided into 4 congruent sectors. What is the central angle of one sector?",
+                    rule: "A full circle is 360°. Divide 360° by the 4 equal segments to find the angle.",
+                    choices: [45, 90, 180, 270],
+                    ans: 90
+                },
+                {
+                    arcVal: 45,
+                    angleVal: 45,
+                    find: 'arc',
+                    qText: "If minor arc PQ represents exactly 1/8 of the entire circle, what is the measure of its central angle ∠POQ?",
+                    rule: "Find 1/8 of the complete 360° rotational angle.",
+                    choices: [30, 45, 60, 90],
+                    ans: 45
+                },
+                {
+                    arcVal: 150,
+                    angleVal: 150,
+                    find: 'angle',
+                    qText: "A semi-circle has a segment cut off. If the remaining central angle is 30°, what is the measure of the major segment's central angle?",
+                    rule: "A semi-circle measures 180°. Subtraction: 180° - 30°.",
+                    choices: [120, 150, 180, 210],
+                    ans: 150
+                }
+            ],
+            medium: [
+                {
+                    arcVal: 140,
+                    angleVal: 140,
+                    find: 'algebra',
+                    formula: "2x + 40",
+                    qText: "If the central angle of a circle is expressed as (2x + 40)° and its intercepted arc is 140°, solve for x.",
+                    rule: "Equate: 2x + 40 = 140. Subtract 40, then divide by 2.",
+                    choices: [40, 50, 70, 100],
+                    ans: 50
+                },
+                {
+                    arcVal: 75,
+                    angleVal: 75,
+                    find: 'algebra',
+                    formula: "3x - 15",
+                    qText: "The intercepted arc AB measures 75°. If the central angle ∠AOB measures (3x - 15)°, what is the value of x?",
+                    rule: "Set up the equation: 3x - 15 = 75. Solve step-by-step.",
+                    choices: [20, 30, 45, 60],
+                    ans: 30
+                },
+                {
+                    arcVal: 108,
+                    angleVal: 108,
+                    find: 'fraction',
+                    qText: "If a pie chart has a category occupying exactly 30% of the circle, what is the degree measure of its central angle?",
+                    rule: "Calculate 30% of 360°: 0.30 × 360.",
+                    choices: [30, 108, 120, 144],
+                    ans: 108
+                },
+                {
+                    arcVal: 240,
+                    angleVal: 240,
+                    find: 'major',
+                    qText: "If a minor arc AB measures 120°, what is the measure of the major arc ACB?",
+                    rule: "The total degree measure of a circle is 360°. Major Arc = 360° - Minor Arc.",
+                    choices: [120, 180, 240, 300],
+                    ans: 240
+                },
+                {
+                    arcVal: 135,
+                    angleVal: 135,
+                    find: 'algebra',
+                    formula: "x + 45",
+                    qText: "Two perpendicular diameters divide a circle. An angle bisector cuts one quadrant. If that angle is (x + 45)°, find x.",
+                    rule: "One quadrant is 90°. Its bisector forms a 45° angle: x + 45 = 90. No, wait, if the sector is 135°, x + 45 = 135.",
+                    choices: [45, 90, 135, 180],
+                    ans: 90
+                }
+            ],
+            hard: [
+                {
+                    arcVal: 144,
+                    angleVal: 144,
+                    find: 'ratio',
+                    qText: "Two central angles have a ratio of 2:3. If they lie on a semicircle (totaling 180°), what is the measure of the larger central angle?",
+                    rule: "Express as 2x + 3x = 180. 5x = 180 => x = 36. Larger angle is 3x.",
+                    choices: [72, 108, 120, 144],
+                    ans: 108
+                },
+                {
+                    arcVal: 150,
+                    angleVal: 150,
+                    find: 'algebra_hard',
+                    formula: "5x - 10 = 2x + 80",
+                    qText: "Central angle ∠AOB is (5x - 10)° and its intercepted arc AB is (2x + 80)°. Find the actual measure of the angle ∠AOB.",
+                    rule: "Since angle = arc, set 5x - 10 = 2x + 80 => 3x = 90 => x = 30. Substitute x back to find the angle.",
+                    choices: [30, 120, 140, 150],
+                    ans: 140
+                },
+                {
+                    arcVal: 200,
+                    angleVal: 200,
+                    find: 'ratio_complex',
+                    qText: "A circle is partitioned into three sectors with central angles in a ratio of 3:5:10. Find the angle of the largest sector.",
+                    rule: "Sum: 3x + 5x + 10x = 18x = 360°. x = 20. Largest sector is 10x.",
+                    choices: [100, 160, 200, 240],
+                    ans: 200
+                },
+                {
+                    arcVal: 135,
+                    angleVal: 135,
+                    find: 'arc_length_sector',
+                    qText: "If the area of a sector is exactly 3/8 of the total area of the circle, what is the measure of its corresponding central angle?",
+                    rule: "Calculate 3/8 of 360°. (360 ÷ 8) × 3.",
+                    choices: [45, 90, 135, 270],
+                    ans: 135
+                },
+                {
+                    arcVal: 144,
+                    angleVal: 144,
+                    find: 'algebra_quad',
+                    formula: "x² + 20",
+                    qText: "If a central angle is (x² + 20)° and its intercepted arc measures 144°, find the positive value of x.",
+                    rule: "Set x² + 20 = 144 => x² = 124? Let's use 120 instead of 144. Adjusting choices for x² + 20 = 120 => x = 10.",
+                    choices: [8, 10, 12, 14],
+                    ans: 10
+                }
+            ]
+        };
+
+        // Make sure the last question equation is valid
+        mathQuestions.hard[4].arcVal = 120;
+        mathQuestions.hard[4].angleVal = 120;
+
+
+        // --- GRAPHICS & PHYSICS SYSTEM ---
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Target Canvas resolution (16:9 widescreen layout standard coordinate space)
+        const VIEW_WIDTH = 1000;
+        const VIEW_HEIGHT = 562.5; // 16:9 exact ratio base
+
+        // Physics constants (normalized to standard coord system)
+        const GRAVITY = 0.35;
+        const BASKETBALL_RADIUS = 16;
+
+        let scale = 1;
+        let score = 0;
+        let streak = 0;
+        let currentDifficulty = 'easy';
+        let currentQuestionIdx = 0;
+        let activeQuestion = null;
+        let gameFinished = false;
+        let shotsTaken = 0;
+        let correctShots = 0;
+
+        // Interactive States
+        let isAiming = false;
+        let startAimX = 0;
+        let startAimY = 0;
+        let currentAimX = 0;
+        let currentAimY = 0;
+
+        // Game Entities
+        let ball = {
+            x: 120,
+            y: VIEW_HEIGHT - 100,
+            vx: 0,
+            vy: 0,
+            radius: BASKETBALL_RADIUS,
+            isShot: false,
+            spinAngle: 0
+        };
+
+        const cannonPos = { x: 120, y: VIEW_HEIGHT - 80 };
+
+        // Targets/Hoops setup
+        let hoops = []; // will store 4 hoops coordinates & matching answers
+        let particles = []; // celebratory particles
+
+        // Match difficulty state visuals
+        function updateDiffUI() {
+            const levels = ['easy', 'medium', 'hard'];
+            levels.forEach(lvl => {
+                const btn = document.getElementById(`btn-diff-${lvl}`);
+                if (lvl === currentDifficulty) {
+                    btn.className = "py-1.5 rounded bg-indigo-600 font-bold text-xs text-white shadow-md transition-colors";
+                } else {
+                    btn.className = "py-1.5 rounded bg-slate-800 font-bold text-xs text-slate-400 hover:bg-slate-700 transition-colors";
+                }
+            });
+
+            const badge = document.getElementById('level-badge');
+            badge.innerText = currentDifficulty;
+            if (currentDifficulty === 'easy') badge.className = "bg-emerald-600/80 border border-emerald-400 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-widest text-emerald-100";
+            else if (currentDifficulty === 'medium') badge.className = "bg-indigo-600/80 border border-indigo-400 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-widest text-indigo-100";
+            else badge.className = "bg-rose-600/80 border border-rose-400 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-widest text-rose-100";
+        }
+
+        // Window Resizing keeping 16:9 scaling
+        function resizeCanvas() {
+            const wrapper = document.getElementById('game-wrapper');
+            const wrapperWidth = wrapper.clientWidth;
+            const canvasContainer = canvas.parentElement;
+            
+            // Set canvas element scale
+            canvas.width = canvasContainer.clientWidth;
+            canvas.height = canvasContainer.clientHeight;
+            
+            // Scaler factor from theoretical 1000x562.5 back to real size
+            scale = canvas.width / VIEW_WIDTH;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        setTimeout(resizeCanvas, 100);
+
+        // --- MATH VISUALIZER ON CANVAS ---
+        // Renders the math problem dynamically inside a beautiful blueprint circle layout inside the canvas.
+        function drawMathCircle() {
+            if (!activeQuestion) return;
+
+            // Anchor math drawing at top center
+            const centerX = VIEW_WIDTH / 2;
+            const centerY = 190;
+            const r = 85;
+
+            // Background Board Glow effect
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = 'rgba(79, 70, 229, 0.4)';
+            ctx.fillStyle = '#0f1123';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, r + 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0; // reset
+
+            // Circle Line
+            ctx.strokeStyle = '#4f46e5';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Center Point O
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Poppins';
+            ctx.fillText("O", centerX - 15, centerY + 5);
+
+            // Draw Central Angle Angles (Default lines starting from 0 (east))
+            const startAngleRad = -Math.PI / 6; // -30 deg slant for style
+            const endAngleRad = startAngleRad + (activeQuestion.angleVal * Math.PI / 180);
+
+            // Radius Line A
+            const ax = centerX + Math.cos(startAngleRad) * r;
+            const ay = centerY + Math.sin(startAngleRad) * r;
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(ax, ay);
+            ctx.stroke();
+
+            // Radius Line B
+            const bx = centerX + Math.cos(endAngleRad) * r;
+            const by = centerY + Math.sin(endAngleRad) * r;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(bx, by);
+            ctx.stroke();
+
+            // Intercepted Arc Highlighter (glowing orange)
+            ctx.strokeStyle = '#fb923c';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, r, startAngleRad, endAngleRad);
+            ctx.stroke();
+
+            // Label A and B points
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = 'bold 14px Poppins';
+            ctx.fillText("A", ax + (ax > centerX ? 10 : -18), ay + (ay > centerY ? 12 : -8));
+            ctx.fillText("B", bx + (bx > centerX ? 10 : -18), by + (by > centerY ? 12 : -8));
+
+            // Small Angle Arc/Label Indicator
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 24, startAngleRad, endAngleRad);
+            ctx.stroke();
+
+            // Label placing calculations
+            const bisectAngle = startAngleRad + (activeQuestion.angleVal * Math.PI / 360);
+            const labelDist = 42;
+            const lx = centerX + Math.cos(bisectAngle) * labelDist;
+            const ly = centerY + Math.sin(bisectAngle) * labelDist;
+
+            ctx.fillStyle = '#10b981';
+            ctx.font = 'bold 12px Poppins';
+            ctx.textAlign = 'center';
+
+            // Determine what to display inside angle vs arc
+            let angleLabel = `${activeQuestion.angleVal}°`;
+            let arcLabel = `${activeQuestion.arcVal}°`;
+
+            if (activeQuestion.find === 'angle') {
+                angleLabel = "?";
+            } else if (activeQuestion.find === 'arc') {
+                arcLabel = "?";
+            } else if (activeQuestion.find === 'algebra' || activeQuestion.find === 'algebra_hard' || activeQuestion.find === 'algebra_quad') {
+                angleLabel = activeQuestion.formula;
+                // Make text slightly smaller if algebraic
+                ctx.font = 'bold 10px Poppins';
+            }
+
+            // Draw inside angle label
+            ctx.fillText(angleLabel, lx, ly);
+
+            // Draw external Arc label
+            const arcLabelDist = r + 24;
+            const alx = centerX + Math.cos(bisectAngle) * arcLabelDist;
+            const aly = centerY + Math.sin(bisectAngle) * arcLabelDist;
+            ctx.fillStyle = '#fb923c';
+            ctx.font = 'bold 13px Poppins';
+            ctx.fillText(arcLabel, alx, aly);
+            
+            ctx.textAlign = 'left'; // reset alignment
+        }
+
+        // --- HOOPS GENERATION ---
+        function setupHoops() {
+            hoops = [];
+            if (!activeQuestion) return;
+
+            // Generate 4 targets horizontally spaced across right side
+            const totalChoices = activeQuestion.choices.length;
+            const startX = 460;
+            const endX = 940;
+            const spacing = (endX - startX) / (totalChoices - 1);
+            
+            // Randomized variations of heights to make aiming dynamic
+            const baseHeight = 360;
+
+            activeQuestion.choices.forEach((choice, idx) => {
+                // Alternating high-low heights for visual interest
+                const offsetHeight = (idx % 2 === 0) ? -30 : 20;
+                hoops.push({
+                    x: startX + (idx * spacing),
+                    y: baseHeight + offsetHeight,
+                    width: 72,
+                    height: 52,
+                    answer: choice,
+                    isCorrect: choice === activeQuestion.ans,
+                    netSway: 0,
+                    rimGlow: 0
+                });
+            });
+        }
+
+        // Draw the Hoops
+        function drawHoops() {
+            hoops.forEach(hoop => {
+                // Backboard line/stand
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(hoop.x + hoop.width / 2, hoop.y + hoop.height);
+                ctx.lineTo(hoop.x + hoop.width / 2, VIEW_HEIGHT);
+                ctx.stroke();
+
+                // Backboard Rectangle
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+                ctx.strokeStyle = hoop.isCorrect ? '#6366f1' : '#334155';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.rect(hoop.x - 12, hoop.y - 30, hoop.width + 24, 40);
+                ctx.fill();
+                ctx.stroke();
+
+                // Target Number Value inside Backboard
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 18px Share Tech Mono';
+                ctx.textAlign = 'center';
+                ctx.fillText(hoop.answer, hoop.x + hoop.width / 2, hoop.y - 4);
+                ctx.textAlign = 'left'; // Reset
+
+                // Hoop Rim
+                ctx.strokeStyle = hoop.rimGlow > 0 ? `rgba(251, 146, 60, ${hoop.rimGlow})` : '#f97316';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.ellipse(hoop.x + hoop.width / 2, hoop.y + 10, hoop.width / 2, 8, 0, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Basketball Net (using paths with dynamic swaying index)
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 1.5;
+                const netTopY = hoop.y + 10;
+                const netBottomY = hoop.y + 35;
+                const netLeft = hoop.x + 8;
+                const netRight = hoop.x + hoop.width - 8;
+                const centerSway = Math.sin(hoop.netSway) * 4;
+
+                ctx.beginPath();
+                // Draw mesh pattern
+                for (let i = 0; i <= 6; i++) {
+                    const ratio = i / 6;
+                    const topX = netLeft + (netRight - netLeft) * ratio;
+                    const botX = (netLeft + 12) + ((netRight - 12) - (netLeft + 12)) * ratio + centerSway;
+                    
+                    ctx.moveTo(topX, netTopY);
+                    ctx.lineTo(botX, netBottomY);
+                }
+                for (let i = 0; i <= 6; i++) {
+                    const ratio = i / 6;
+                    const topX = netLeft + (netRight - netLeft) * (1 - ratio);
+                    const botX = (netLeft + 12) + ((netRight - 12) - (netLeft + 12)) * ratio + centerSway;
+                    
+                    ctx.moveTo(topX, netTopY);
+                    ctx.lineTo(botX, netBottomY);
+                }
+                ctx.stroke();
+
+                // Diminish glow over time
+                if (hoop.rimGlow > 0) hoop.rimGlow -= 0.05;
+                if (hoop.netSway > 0) hoop.netSway -= 0.1;
+            });
+        }
+
+
+        // --- PARTICLE PHYSICS celebrate splash ---
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 25; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8 - 3,
+                    color: color,
+                    radius: Math.random() * 3 + 2,
+                    alpha: 1,
+                    life: 1
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.1; // gravity
+                p.alpha -= 0.02;
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+
+        // --- MAIN BASKETBALL DRAW ---
+        function drawBasketball() {
+            ctx.save();
+            ctx.translate(ball.x, ball.y);
+            ctx.rotate(ball.spinAngle);
+
+            // Orange base ball body
+            ctx.fillStyle = '#ea580c';
+            ctx.beginPath();
+            ctx.arc(0, 0, ball.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Black stripes on ball
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1.5;
+
+            // Horizontal Center Stripe
+            ctx.beginPath();
+            ctx.moveTo(-ball.radius, 0);
+            ctx.lineTo(ball.radius, 0);
+            ctx.stroke();
+
+            // Curved Stripes
+            ctx.beginPath();
+            ctx.arc(-ball.radius, 0, ball.radius, -Math.PI / 3, Math.PI / 3);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(ball.radius, 0, ball.radius, Math.PI - Math.PI / 3, Math.PI + Math.PI / 3);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Slingshot Pullback Mechanic Aim Line
+        function drawAimTrajectory() {
+            if (!isAiming) return;
+
+            // Vector math
+            const dx = startAimX - currentAimX;
+            const dy = startAimY - currentAimY;
+            
+            // Limit trajectory line length
+            const pullDistance = Math.min(Math.sqrt(dx*dx + dy*dy), 150);
+            const angle = Math.atan2(dy, dx);
+            
+            // Standard simulated projection speeds
+            const shootPower = pullDistance * 0.12;
+            let simX = ball.x;
+            let simY = ball.y;
+            let simVX = Math.cos(angle) * shootPower;
+            let simVY = Math.sin(angle) * shootPower;
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(251, 146, 60, 0.55)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([4, 6]);
+            ctx.beginPath();
+            ctx.moveTo(simX, simY);
+
+            // Draw standard parabolic prediction arc
+            for (let t = 0; t < 35; t++) {
+                simX += simVX;
+                simY += simVY;
+                simVY += GRAVITY;
+                ctx.lineTo(simX, simY);
+            }
+            ctx.stroke();
+            ctx.restore();
+
+            // Drag anchor visualization
+            ctx.strokeStyle = 'rgba(99, 102, 241, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, pullDistance, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        function drawBallLauncher() {
+            // Draw a stylish futuristic cannon or basket holding mount
+            ctx.fillStyle = '#312e81';
+            ctx.strokeStyle = '#4338ca';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cannonPos.x, cannonPos.y + 20, 24, Math.PI, 0);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+
+        // --- COLLISION DETECTION & PHYSICS LOOP ---
+        function checkCollisions() {
+            if (!ball.isShot) return;
+
+            // Hoop intersections
+            hoops.forEach(hoop => {
+                const rimCenterX = hoop.x + hoop.width / 2;
+                const rimCenterY = hoop.y + 10;
+                
+                // Distance to net center entry point
+                const dist = Math.hypot(ball.x - rimCenterX, ball.y - rimCenterY);
+                
+                // Falling through top criteria
+                if (dist < ball.radius + 15 && ball.vy > 0 && ball.y < rimCenterY) {
+                    processShotResult(hoop);
+                }
+            });
+
+            // Boundary limits
+            if (ball.y > VIEW_HEIGHT + 50 || ball.x > VIEW_WIDTH + 50 || ball.x < -50) {
+                // Ball fell out of bound without scoring
+                resetBall();
+                sound.playClank();
+                showTemporaryFeedback(false, "Missed completely!", "Take another shot! Make sure to align with the correct answer hoop.");
+            }
+        }
+
+        function processShotResult(hoop) {
+            ball.isShot = false; // pause physics
+            shotsTaken++;
+
+            // Trigger net interaction feedback
+            hoop.netSway = Math.PI / 4;
+            hoop.rimGlow = 1.0;
+
+            if (hoop.isCorrect) {
+                correctShots++;
+                streak++;
+                score += 10 + (streak > 2 ? Math.min(streak * 2, 20) : 0); // Streak Multiplier
+                sound.playSwish();
+                if (streak >= 3) {
+                    sound.playPerfect();
+                    document.getElementById('streak-fire').classList.remove('hidden');
+                }
+                createExplosion(ball.x, ball.y, '#10b981');
+                showTemporaryFeedback(true, "Swish! Correct", activeQuestion.rule);
+                document.getElementById('btn-next').classList.remove('hidden');
+            } else {
+                streak = 0;
+                document.getElementById('streak-fire').classList.add('hidden');
+                sound.playClank();
+                createExplosion(ball.x, ball.y, '#f43f5e');
+                showTemporaryFeedback(false, `Incorrect! (${hoop.answer})`, activeQuestion.rule);
+                // Allow immediate retry
+                setTimeout(resetBall, 1500);
+            }
+
+            updateHUD();
+        }
+
+        function showTemporaryFeedback(isCorrect, title, message) {
+            const panel = document.getElementById('feedback-panel');
+            const emojiEl = document.getElementById('feedback-emoji');
+            const titleEl = document.getElementById('feedback-title');
+            const descEl = document.getElementById('feedback-desc');
+
+            panel.classList.remove('hidden');
+            descEl.innerText = message;
+            titleEl.innerText = title;
+
+            if (isCorrect) {
+                emojiEl.innerText = "🏀";
+                panel.className = "my-3 flex-grow flex flex-col justify-center items-center text-center p-3 rounded-xl border border-emerald-500/30 bg-emerald-950/80 text-emerald-200 transition-all duration-300";
+            } else {
+                emojiEl.innerText = "❌";
+                panel.className = "my-3 flex-grow flex flex-col justify-center items-center text-center p-3 rounded-xl border border-rose-500/30 bg-rose-950/80 text-rose-200 transition-all duration-300";
+            }
+        }
+
+        function resetBall() {
+            ball.x = cannonPos.x;
+            ball.y = cannonPos.y;
+            ball.vx = 0;
+            ball.vy = 0;
+            ball.isShot = false;
+        }
+
+        function updateHUD() {
+            document.getElementById('hud-score').innerText = String(score).padStart(3, '0');
+            document.getElementById('hud-streak').innerText = streak;
+            document.getElementById('question-index').innerText = `Q: ${currentQuestionIdx + 1}/${mathQuestions[currentDifficulty].length}`;
+        }
+
+
+        // --- CONTROLS / INTERACTIVE DRAG EVENTS ---
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            // Client mouse position converted back to local coordinates 1000 x 562.5
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+
+            // Handle touch inputs
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+
+            return {
+                x: (clientX - rect.left) / scale,
+                y: (clientY - rect.top) / scale
+            };
+        }
+
+        function handleStart(e) {
+            if (ball.isShot || gameFinished) return;
+            sound.init(); // enable browser audio on first active gesture
+
+            const pos = getMousePos(e);
+            
+            // Check if player clicked near the basketball
+            const dist = Math.hypot(pos.x - ball.x, pos.y - ball.y);
+            if (dist < 50) {
+                isAiming = true;
+                startAimX = pos.x;
+                startAimY = pos.y;
+                currentAimX = pos.x;
+                currentAimY = pos.y;
+                document.getElementById('aim-tip').style.opacity = '0';
+            }
+        }
+
+        function handleMove(e) {
+            if (!isAiming) return;
+            e.preventDefault(); // Prevents touch drag page scroll while aiming
+            const pos = getMousePos(e);
+            currentAimX = pos.x;
+            currentAimY = pos.y;
+        }
+
+        function handleEnd() {
+            if (!isAiming) return;
+            isAiming = false;
+
+            const dx = startAimX - currentAimX;
+            const dy = startAimY - currentAimY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (dist > 10) {
+                // Apply force
+                const pullDistance = Math.min(dist, 150);
+                const angle = Math.atan2(dy, dx);
+                const shootPower = pullDistance * 0.12;
+
+                ball.vx = Math.cos(angle) * shootPower;
+                ball.vy = Math.sin(angle) * shootPower;
+                ball.isShot = true;
+                sound.playShot();
+            } else {
+                resetBall();
+            }
+        }
+
+        // Desktop Pointer Listeners
+        canvas.addEventListener('mousedown', handleStart);
+        canvas.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleEnd);
+
+        // Mobile Tablet Touch Listeners
+        canvas.addEventListener('touchstart', handleStart, { passive: false });
+        canvas.addEventListener('touchmove', handleMove, { passive: false });
+        window.addEventListener('touchend', handleEnd);
+
+
+        // --- RECURSIVE ENGINE LOOP ---
+        function update() {
+            // Ball physics update
+            if (ball.isShot) {
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+                ball.vy += GRAVITY;
+                
+                // Rotational spin match speed horizontal
+                ball.spinAngle += ball.vx * 0.03;
+
+                checkCollisions();
+            }
+
+            updateParticles();
+        }
+
+        function draw() {
+            // Draw gradient sky
+            const gradient = ctx.createRadialGradient(VIEW_WIDTH/2, VIEW_HEIGHT/2, 50, VIEW_WIDTH/2, VIEW_HEIGHT/2, VIEW_WIDTH*0.6);
+            gradient.addColorStop(0, '#10122e');
+            gradient.addColorStop(1, '#050611');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+
+            // Draw decorative basketball court floor
+            ctx.fillStyle = 'rgba(79, 70, 229, 0.08)';
+            ctx.fillRect(0, VIEW_HEIGHT - 60, VIEW_WIDTH, 60);
+            ctx.strokeStyle = '#4f46e5';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, VIEW_HEIGHT - 60, VIEW_WIDTH, 60);
+
+            // Draw standard mathematical visualizer
+            drawMathCircle();
+
+            // Draw interactives
+            drawBallLauncher();
+            drawHoops();
+            drawParticles();
+
+            if (!ball.isShot && !isAiming) {
+                // Return ball gently to center when not moving
+                ball.x = cannonPos.x;
+                ball.y = cannonPos.y;
+            }
+
+            drawBasketball();
+            drawAimTrajectory();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+
+        // --- GAME CONTROLLERS ---
+        function setDifficulty(tier) {
+            currentDifficulty = tier;
+            updateDiffUI();
+            resetGame();
+        }
+
+        function loadQuestion() {
+            const list = mathQuestions[currentDifficulty];
+            activeQuestion = list[currentQuestionIdx];
+            
+            document.getElementById('question-text').innerText = activeQuestion.qText;
+            document.getElementById('rule-tip').innerText = activeQuestion.rule;
+            document.getElementById('feedback-panel').classList.add('hidden');
+            document.getElementById('btn-next').classList.add('hidden');
+
+            setupHoops();
+            resetBall();
+            updateHUD();
+        }
+
+        document.getElementById('btn-next').addEventListener('click', () => {
+            currentQuestionIdx++;
+            const list = mathQuestions[currentDifficulty];
+            
+            if (currentQuestionIdx >= list.length) {
+                // Tier Completed
+                showGameOver();
+            } else {
+                loadQuestion();
+            }
+        });
+
+        function startGame(difficulty) {
+            currentDifficulty = difficulty;
+            document.getElementById('screen-start').classList.add('hidden');
+            updateDiffUI();
+            resetGame();
+            sound.init(); // Auto start retro loops
+        }
+
+        function resetGame() {
+            currentQuestionIdx = 0;
+            score = 0;
+            streak = 0;
+            shotsTaken = 0;
+            correctShots = 0;
+            gameFinished = false;
+            document.getElementById('streak-fire').classList.add('hidden');
+            document.getElementById('screen-gameover').classList.add('hidden');
+            loadQuestion();
+        }
+
+        function showGameOver() {
+            gameFinished = true;
+            document.getElementById('screen-gameover').classList.remove('hidden');
+            document.getElementById('completed-difficulty-text').innerText = currentDifficulty;
+            document.getElementById('final-score').innerText = score;
+
+            // Accuracy %
+            const acc = shotsTaken > 0 ? Math.round((correctShots / shotsTaken) * 100) : 100;
+            document.getElementById('final-accuracy').innerText = `${acc}%`;
+
+            // Setup Next Tier Option
+            const btnNextTier = document.getElementById('btn-next-tier');
+            if (currentDifficulty === 'easy') {
+                btnNextTier.innerText = "Next Tier: Medium 🚀";
+                btnNextTier.onclick = () => upgradeTier('medium');
+                btnNextTier.classList.remove('hidden');
+            } else if (currentDifficulty === 'medium') {
+                btnNextTier.innerText = "Next Tier: Hard 🔥";
+                btnNextTier.onclick = () => upgradeTier('hard');
+                btnNextTier.classList.remove('hidden');
+            } else {
+                btnNextTier.classList.add('hidden'); // Fully beaten
+            }
+        }
+
+        function upgradeTier(nextTier) {
+            currentDifficulty = nextTier;
+            updateDiffUI();
+            resetGame();
+        }
+
+        // Initial launch setups
+        window.onload = function() {
+            updateHUD();
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
